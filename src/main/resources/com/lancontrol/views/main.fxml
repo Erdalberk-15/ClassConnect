@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.lancontrol.controllers.MainController">
+    
+    <!-- Top: Settings Bar -->
+    <top>
+        <VBox styleClass="header-box">
+            <HBox spacing="20" alignment="CENTER_LEFT">
+                <padding><Insets top="10" right="15" bottom="10" left="15"/></padding>
+                
+                <Label fx:id="localIPLabel" styleClass="ip-label"/>
+                
+                <Label text="9A Sınıfı" styleClass="device-name-label"/>
+                
+                <Region HBox.hgrow="ALWAYS"/>
+                
+                <Label fx:id="statusLabel" text="Ready" styleClass="status-label"/>
+            </HBox>
+        </VBox>
+    </top>
+    
+    <!-- Left: Device List -->
+    <left>
+        <VBox prefWidth="250" styleClass="device-panel">
+            <padding><Insets top="10" right="10" bottom="10" left="10"/></padding>
+            
+            <Label text="Discovered Devices" styleClass="section-title"/>
+            
+            <ListView fx:id="deviceListView" VBox.vgrow="ALWAYS"/>
+            
+            <Button text="↻ Refresh" onAction="#onRefreshDevices" maxWidth="Infinity" styleClass="refresh-btn"/>
+        </VBox>
+    </left>
+    
+    <!-- Center: Actions and Controls -->
+    <center>
+        <VBox spacing="15">
+            <padding><Insets top="15" right="15" bottom="15" left="15"/></padding>
+            
+            <!-- Target IP (for testing) -->
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Target IP:" styleClass="field-label"/>
+                <TextField fx:id="targetIPField" prefWidth="200" promptText="127.0.0.1"/>
+            </HBox>
+            
+            <Separator/>
+            
+            <!-- Quick Actions -->
+            <Label text="Quick Actions" styleClass="section-title"/>
+            <FlowPane fx:id="actionPane"/>
+            
+        </VBox>
+    </center>
+    
+    <!-- Bottom: Log Area -->
+    <bottom>
+        <VBox styleClass="log-panel">
+            <padding><Insets top="10" right="15" bottom="10" left="15"/></padding>
+            
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Activity Log" styleClass="section-title"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button text="Clear" onAction="#onClearLog" styleClass="clear-btn"/>
+            </HBox>
+            
+            <TextArea fx:id="logArea" prefHeight="150" editable="false" wrapText="true" styleClass="log-area"/>
+        </VBox>
+    </bottom>
+    
+</BorderPane>

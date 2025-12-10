@@ -1,0 +1,204 @@
+/* Main Theme */
+.root {
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-font-size: 13px;
+    -fx-background-color: #1e1e2e;
+}
+
+/* Header */
+.header-box {
+    -fx-background-color: #2d2d3d;
+    -fx-border-color: #3d3d5c;
+    -fx-border-width: 0 0 1 0;
+}
+
+.ip-label {
+    -fx-text-fill: #89b4fa;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+}
+
+.status-label {
+    -fx-text-fill: #a6e3a1;
+    -fx-font-style: italic;
+}
+
+.device-name-label {
+    -fx-text-fill: #f9e2af;
+    -fx-font-weight: bold;
+    -fx-font-size: 16px;
+}
+
+/* Device Panel */
+.device-panel {
+    -fx-background-color: #2d2d3d;
+    -fx-border-color: #3d3d5c;
+    -fx-border-width: 0 1 0 0;
+}
+
+.device-panel .list-view {
+    -fx-background-color: #1e1e2e;
+    -fx-border-color: #3d3d5c;
+}
+
+.device-panel .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #cdd6f4;
+    -fx-padding: 8 10;
+}
+
+.device-panel .list-cell:selected {
+    -fx-background-color: #45475a;
+}
+
+.device-panel .list-cell:hover {
+    -fx-background-color: #313244;
+}
+
+/* Section Titles */
+.section-title {
+    -fx-text-fill: #cba6f7;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-padding: 5 0;
+}
+
+.field-label {
+    -fx-text-fill: #bac2de;
+}
+
+/* Text Fields */
+.text-field, .password-field {
+    -fx-background-color: #313244;
+    -fx-text-fill: #cdd6f4;
+    -fx-border-color: #45475a;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 6 10;
+}
+
+.text-field:focused, .password-field:focused {
+    -fx-border-color: #89b4fa;
+}
+
+/* Buttons */
+.button {
+    -fx-background-color: #45475a;
+    -fx-text-fill: #cdd6f4;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-padding: 8 15;
+    -fx-cursor: hand;
+}
+
+.button:hover {
+    -fx-background-color: #585b70;
+}
+
+.button:pressed {
+    -fx-background-color: #313244;
+}
+
+/* Action Buttons */
+.action-button {
+    -fx-background-color: #3d5a80;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.action-button:hover {
+    -fx-background-color: #4a6fa5;
+}
+
+.screen-button {
+    -fx-background-color: #89b4fa;
+    -fx-text-fill: #1e1e2e;
+}
+
+.screen-button:hover {
+    -fx-background-color: #b4befe;
+}
+
+/* Special Buttons */
+.refresh-btn {
+    -fx-background-color: #45475a;
+    -fx-text-fill: #89b4fa;
+}
+
+.broadcast-btn {
+    -fx-background-color: #fab387;
+    -fx-text-fill: #1e1e2e;
+    -fx-font-weight: bold;
+}
+
+.broadcast-btn:hover {
+    -fx-background-color: #f9c87c;
+}
+
+.send-btn {
+    -fx-background-color: #a6e3a1;
+    -fx-text-fill: #1e1e2e;
+    -fx-font-weight: bold;
+}
+
+.send-btn:hover {
+    -fx-background-color: #b8f0b3;
+}
+
+.clear-btn {
+    -fx-background-color: #f38ba8;
+    -fx-text-fill: #1e1e2e;
+}
+
+/* Log Panel */
+.log-panel {
+    -fx-background-color: #2d2d3d;
+    -fx-border-color: #3d3d5c;
+    -fx-border-width: 1 0 0 0;
+}
+
+.log-area {
+    -fx-background-color: #11111b;
+    -fx-text-fill: #a6adc8;
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 12px;
+    -fx-border-color: #3d3d5c;
+}
+
+.log-area .content {
+    -fx-background-color: #11111b;
+}
+
+/* Separator */
+.separator .line {
+    -fx-border-color: #45475a;
+}
+
+/* Scrollbars */
+.scroll-bar {
+    -fx-background-color: #2d2d3d;
+}
+
+.scroll-bar .thumb {
+    -fx-background-color: #45475a;
+    -fx-background-radius: 4;
+}
+
+.scroll-bar .thumb:hover {
+    -fx-background-color: #585b70;
+}
+
+/* Labels */
+.label {
+    -fx-text-fill: #cdd6f4;
+}
+
+/* Tooltips */
+.tooltip {
+    -fx-background-color: #313244;
+    -fx-text-fill: #cdd6f4;
+    -fx-border-color: #45475a;
+    -fx-font-size: 12px;
+}
