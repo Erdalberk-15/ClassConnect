@@ -2,9 +2,9 @@
 <launch4jConfig>
   <dontWrapJar>false</dontWrapJar>
   <headerType>gui</headerType>
-  <jar>build\libs\ExampleLauncher-1.0-SNAPSHOT.jar</jar>
-  <outfile>C:\Users\DELL\Desktop\ExampleLauncher.exe</outfile>
-  <errTitle>ExampleLauncher Error</errTitle>
+  <jar>build\libs\LANControl-1.0-SNAPSHOT.jar</jar>
+  <outfile>ClassConnecter.exe</outfile>
+  <errTitle>ClassConnecter Error</errTitle>
   <cmdLine></cmdLine>
   <chdir></chdir>
   <priority>normal</priority>
@@ -13,26 +13,26 @@
   <stayAlive>false</stayAlive>
   <restartOnCrash>false</restartOnCrash>
   <manifest></manifest>
-  <icon>C:\Users\DELL\Downloads\559778729_17864369643471178_6326753109871118797_n.ico</icon>
+  <icon></icon>
   <jre>
     <path>%JAVA_HOME%;%PATH%</path>
     <requiresJdk>false</requiresJdk>
     <requires64Bit>false</requires64Bit>
     <minVersion>21</minVersion>
     <maxVersion></maxVersion>
-    <opt>-Xmx8G</opt>
+    <opt>-Xmx2G</opt>
   </jre>
   <versionInfo>
     <fileVersion>1.0.0.0</fileVersion>
     <txtFileVersion>1.0.0</txtFileVersion>
-    <fileDescription>ExampleLauncher - Minecraft Launcher for Melonya Server</fileDescription>
+    <fileDescription>ClassConnecter - LAN Control Application</fileDescription>
     <copyright>Copyright © 2024</copyright>
     <productVersion>1.0.0.0</productVersion>
     <txtProductVersion>1.0.0</txtProductVersion>
-    <productName>ExampleLauncher</productName>
-    <companyName>ExampleLauncher</companyName>
-    <internalName>ExampleLauncher</internalName>
-    <originalFilename>ExampleLauncher.exe</originalFilename>
+    <productName>ClassConnecter</productName>
+    <companyName>9A Sınıfı</companyName>
+    <internalName>ClassConnecter</internalName>
+    <originalFilename>ClassConnecter.exe</originalFilename>
     <trademarks></trademarks>
     <language>TURKISH</language>
   </versionInfo>
