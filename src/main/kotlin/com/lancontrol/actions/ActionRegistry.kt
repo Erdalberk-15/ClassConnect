@@ -134,9 +134,9 @@ object ActionRegistry {
         }
         
         // Donate overlay
-        register(Commands.DONATE) { _ ->
+        register(Commands.DONATE) { packet ->
             try {
-                DonateOverlay.show()
+                DonateOverlay.show(packet.senderName)
                 Pair(true, "Donate shown")
             } catch (e: Exception) {
                 Pair(false, "Donate failed: ${e.message}")

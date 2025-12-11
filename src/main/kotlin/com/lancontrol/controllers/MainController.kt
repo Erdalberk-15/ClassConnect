@@ -7,6 +7,7 @@ import com.lancontrol.models.CommandPacket
 import com.lancontrol.network.CommandSender
 import com.lancontrol.network.DeviceDiscovery
 import com.lancontrol.network.NetworkConfig
+import com.lancontrol.utils.TimeRestriction
 import javafx.application.Platform
 import javafx.collections.FXCollections
 import javafx.fxml.FXML
@@ -18,6 +19,7 @@ import javafx.scene.layout.FlowPane
 import javafx.geometry.Insets
 import java.net.URL
 import java.util.ResourceBundle
+import java.util.Optional
 
 class MainController : Initializable {
     
@@ -78,7 +80,9 @@ class MainController : Initializable {
             tooltip = Tooltip("Seçili cihazın ekranını görüntüle")
             
             setOnAction {
-                showRemoteScreen()
+                if (checkTimeRestriction()) {
+                    showRemoteScreen()
+                }
             }
         }
         actionPane.children.add(screenBtn)
@@ -91,11 +95,74 @@ class MainController : Initializable {
                 tooltip = Tooltip(action.description)
                 
                 setOnAction {
-                    executeAction(action.commandId)
+                    if (checkTimeRestriction()) {
+                        executeAction(action.commandId)
+                    }
                 }
             }
             actionPane.children.add(btn)
         }
+    }
+    
+    /**
+     * Check if action is allowed based on time restriction
+     * Returns true if allowed, false if restricted
+     */
+    private fun checkTimeRestriction(): Boolean {
+        if (!TimeRestriction.isRestricted()) {
+            return true
+        }
+        
+        // Show restriction dialog
+        val alert = Alert(Alert.AlertType.WARNING)
+        alert.title = "Erişim Engellendi"
+        alert.headerText = "Ders Saatleri İçinde Bu Uygulamaya Erişim Yetkiniz Yok"
+        alert.contentText = "Admin şifresi ile geçici erişim sağlayabilirsiniz."
+        
+        val adminButton = ButtonType("Admin Girişi")
+        val cancelButton = ButtonType("İptal", ButtonBar.ButtonData.CANCEL_CLOSE)
+        
+        alert.buttonTypes.setAll(adminButton, cancelButton)
+        
+        val result = alert.showAndWait()
+        
+        if (result.isPresent && result.get() == adminButton) {
+            return showAdminPasswordDialog()
+        }
+        
+        return false
+    }
+    
+    /**
+     * Show admin password dialog
+     * Returns true if correct password entered
+     */
+    private fun showAdminPasswordDialog(): Boolean {
+        val dialog = TextInputDialog()
+        dialog.title = "Admin Girişi"
+        dialog.headerText = "Admin Şifresi"
+        dialog.contentText = "Şifre:"
+        
+        // Make it a password field
+        val passwordField = PasswordField()
+        passwordField.promptText = "Admin şifresi girin"
+        dialog.editor.isVisible = false
+        dialog.editor.isManaged = false
+        dialog.dialogPane.content = VBox(10.0, Label("Admin şifresini girin:"), passwordField)
+        
+        val result = dialog.showAndWait()
+        
+        val password = passwordField.text
+        
+        if (password.isNotEmpty() && TimeRestriction.tryUnlock(password)) {
+            showAlert("Başarılı", "5 dakika için erişim sağlandı.")
+            log("[ADMIN] Geçici erişim sağlandı (5 dakika)")
+            return true
+        } else if (password.isNotEmpty()) {
+            showAlert("Hata", "Yanlış şifre!")
+        }
+        
+        return false
     }
     
     private fun showRemoteScreen() {
