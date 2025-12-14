@@ -3,7 +3,7 @@
   <dontWrapJar>false</dontWrapJar>
   <headerType>gui</headerType>
   <jar>build\libs\LANControl-1.0-SNAPSHOT.jar</jar>
-  <outfile>ClassConnecter.exe</outfile>
+  <outfile>C:\Users\DELL\Desktop\ClassConnecter.exe</outfile>
   <errTitle>ClassConnecter Error</errTitle>
   <cmdLine></cmdLine>
   <chdir></chdir>
@@ -13,7 +13,7 @@
   <stayAlive>false</stayAlive>
   <restartOnCrash>false</restartOnCrash>
   <manifest></manifest>
-  <icon></icon>
+  <icon>C:\Users\DELL\Downloads\meliksah.ico</icon>
   <jre>
     <path>%JAVA_HOME%;%PATH%</path>
     <requiresJdk>false</requiresJdk>
@@ -26,11 +26,11 @@
     <fileVersion>1.0.0.0</fileVersion>
     <txtFileVersion>1.0.0</txtFileVersion>
     <fileDescription>ClassConnecter - LAN Control Application</fileDescription>
-    <copyright>Copyright © 2024</copyright>
+    <copyright>Copyright © 2025</copyright>
     <productVersion>1.0.0.0</productVersion>
     <txtProductVersion>1.0.0</txtProductVersion>
     <productName>ClassConnecter</productName>
-    <companyName>9A Sınıfı</companyName>
+    <companyName>ERBEPE Holdings</companyName>
     <internalName>ClassConnecter</internalName>
     <originalFilename>ClassConnecter.exe</originalFilename>
     <trademarks></trademarks>

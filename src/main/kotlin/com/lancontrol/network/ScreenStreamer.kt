@@ -6,7 +6,10 @@ import java.awt.Toolkit
 import java.io.ByteArrayOutputStream
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.Executors
+import javax.imageio.IIOImage
 import javax.imageio.ImageIO
+import javax.imageio.ImageWriteParam
 import kotlin.concurrent.thread
 
 /**
@@ -15,8 +18,11 @@ import kotlin.concurrent.thread
 object ScreenStreamer {
     const val SCREEN_PORT = 7892
     private var serverSocket: ServerSocket? = null
-    private var running = false
+    @Volatile private var running = false
     private var streamThread: Thread? = null
+    private val executor = Executors.newCachedThreadPool()
+    private val robot by lazy { Robot() }
+    private val screenRect by lazy { Rectangle(Toolkit.getDefaultToolkit().screenSize) }
     
     fun startServer() {
         if (running) return
@@ -24,17 +30,13 @@ object ScreenStreamer {
         
         streamThread = thread(name = "ScreenStreamer") {
             try {
-                serverSocket = ServerSocket(SCREEN_PORT)
-                serverSocket?.soTimeout = 1000
+                serverSocket = ServerSocket(SCREEN_PORT).apply { soTimeout = 1000 }
                 println("[ScreenStreamer] Server started on port $SCREEN_PORT")
                 
                 while (running) {
                     try {
-                        val client = serverSocket?.accept()
-                        client?.let { handleClient(it) }
-                    } catch (e: java.net.SocketTimeoutException) {
-                        // Normal timeout
-                    }
+                        serverSocket?.accept()?.let { executor.submit { handleClient(it) } }
+                    } catch (_: java.net.SocketTimeoutException) {}
                 }
             } catch (e: Exception) {
                 println("[ScreenStreamer] Error: ${e.message}")
@@ -44,58 +46,49 @@ object ScreenStreamer {
     
     fun stopServer() {
         running = false
+        executor.shutdown()
         serverSocket?.close()
-        streamThread?.join(2000)
+        streamThread?.join(1000)
     }
     
     private fun handleClient(socket: Socket) {
-        thread {
-            try {
-                socket.soTimeout = 10000
-                val output = socket.getOutputStream()
-                
-                // Capture screen
-                val robot = Robot()
-                val screenRect = Rectangle(Toolkit.getDefaultToolkit().screenSize)
-                val screenshot = robot.createScreenCapture(screenRect)
-                
-                // Convert to JPEG bytes
-                val baos = ByteArrayOutputStream()
-                ImageIO.write(screenshot, "jpg", baos)
-                val imageBytes = baos.toByteArray()
-                
-                // Send size first (4 bytes), then image data
-                val size = imageBytes.size
-                output.write(byteArrayOf(
-                    (size shr 24).toByte(),
-                    (size shr 16).toByte(),
-                    (size shr 8).toByte(),
-                    size.toByte()
-                ))
-                output.write(imageBytes)
-                output.flush()
-                
-                println("[ScreenStreamer] Sent screenshot (${imageBytes.size} bytes)")
-                
-            } catch (e: Exception) {
-                println("[ScreenStreamer] Client error: ${e.message}")
-            } finally {
-                socket.close()
+        try {
+            socket.soTimeout = 10000
+            val output = socket.getOutputStream()
+            
+            val screenshot = robot.createScreenCapture(screenRect)
+            
+            // Compress with quality 0.7 for faster transfer
+            val baos = ByteArrayOutputStream(100000)
+            val writer = ImageIO.getImageWritersByFormatName("jpg").next()
+            val param = writer.defaultWriteParam.apply {
+                compressionMode = ImageWriteParam.MODE_EXPLICIT
+                compressionQuality = 0.7f
             }
+            writer.output = ImageIO.createImageOutputStream(baos)
+            writer.write(null, IIOImage(screenshot, null, null), param)
+            writer.dispose()
+            
+            val imageBytes = baos.toByteArray()
+            val size = imageBytes.size
+            
+            output.write(byteArrayOf((size shr 24).toByte(), (size shr 16).toByte(), (size shr 8).toByte(), size.toByte()))
+            output.write(imageBytes)
+            output.flush()
+        } catch (e: Exception) {
+            println("[ScreenStreamer] Client error: ${e.message}")
+        } finally {
+            socket.close()
         }
     }
     
-    /**
-     * Request screenshot from remote machine
-     */
     fun requestScreenshot(targetIP: String, onResult: (ByteArray?) -> Unit) {
-        thread {
+        executor.submit {
             try {
                 Socket(targetIP, SCREEN_PORT).use { socket ->
                     socket.soTimeout = 10000
                     val input = socket.getInputStream()
                     
-                    // Read size (4 bytes)
                     val sizeBytes = ByteArray(4)
                     input.read(sizeBytes)
                     val size = ((sizeBytes[0].toInt() and 0xFF) shl 24) or
@@ -103,7 +96,6 @@ object ScreenStreamer {
                                ((sizeBytes[2].toInt() and 0xFF) shl 8) or
                                (sizeBytes[3].toInt() and 0xFF)
                     
-                    // Read image data
                     val imageBytes = ByteArray(size)
                     var totalRead = 0
                     while (totalRead < size) {
@@ -111,11 +103,9 @@ object ScreenStreamer {
                         if (read == -1) break
                         totalRead += read
                     }
-                    
                     onResult(imageBytes)
                 }
             } catch (e: Exception) {
-                println("[ScreenStreamer] Request error: ${e.message}")
                 onResult(null)
             }
         }

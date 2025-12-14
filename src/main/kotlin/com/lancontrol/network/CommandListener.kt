@@ -6,6 +6,7 @@ import com.lancontrol.actions.ActionRegistry
 import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketTimeoutException
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 /**
@@ -13,11 +14,12 @@ import kotlin.concurrent.thread
  */
 class CommandListener {
     private var serverSocket: ServerSocket? = null
-    private var running = false
+    @Volatile private var running = false
     private var listenerThread: Thread? = null
+    private val executor = Executors.newCachedThreadPool()
     
-    val onCommandReceived: MutableList<(CommandPacket) -> Unit> = mutableListOf()
-    val onCommandExecuted: MutableList<(CommandPacket, Boolean, String) -> Unit> = mutableListOf()
+    val onCommandReceived = mutableListOf<(CommandPacket) -> Unit>()
+    val onCommandExecuted = mutableListOf<(CommandPacket, Boolean, String) -> Unit>()
     
     fun start() {
         if (running) return
@@ -25,17 +27,13 @@ class CommandListener {
         
         listenerThread = thread(name = "CommandListener") {
             try {
-                serverSocket = ServerSocket(NetworkConfig.commandPort)
-                serverSocket?.soTimeout = 1000
+                serverSocket = ServerSocket(NetworkConfig.commandPort).apply { soTimeout = 1000 }
                 println("[Listener] Started on port ${NetworkConfig.commandPort}")
                 
                 while (running) {
                     try {
-                        val client = serverSocket?.accept()
-                        client?.let { handleClient(it) }
-                    } catch (e: SocketTimeoutException) {
-                        // Normal timeout, continue loop
-                    }
+                        serverSocket?.accept()?.let { executor.submit { handleClient(it) } }
+                    } catch (_: SocketTimeoutException) {}
                 }
             } catch (e: Exception) {
                 println("[Listener] Error: ${e.message}")
@@ -45,60 +43,43 @@ class CommandListener {
     
     fun stop() {
         running = false
+        executor.shutdown()
         serverSocket?.close()
-        listenerThread?.join(2000)
-        println("[Listener] Stopped")
+        listenerThread?.join(1000)
     }
     
     private fun handleClient(socket: Socket) {
-        thread {
-            try {
-                socket.soTimeout = 5000
-                val input = socket.getInputStream().bufferedReader().readLine()
-                val packet = CommandPacket.fromJson(input)
-                
-                if (packet == null) {
-                    sendResponse(socket, false, "", "Invalid packet format")
-                    return@thread
-                }
-                
-                // Check if this command is for us
-                val localIP = NetworkConfig.getLocalIP()
-                if (packet.targetIP != "*" && packet.targetIP != localIP) {
-                    sendResponse(socket, false, packet.commandId, "Not target device")
-                    return@thread
-                }
-                
-                // Notify listeners
-                onCommandReceived.forEach { it(packet) }
-                
-                // Execute the action
-                val result = ActionRegistry.execute(packet)
-                
-                // Notify execution complete
-                onCommandExecuted.forEach { it(packet, result.first, result.second) }
-                
-                sendResponse(socket, result.first, packet.commandId, result.second)
-                
-            } catch (e: Exception) {
-                println("[Listener] Client error: ${e.message}")
-            } finally {
-                socket.close()
+        try {
+            socket.soTimeout = 5000
+            val packet = CommandPacket.fromJson(socket.getInputStream().bufferedReader().readLine())
+            
+            if (packet == null) {
+                sendResponse(socket, false, "", "Invalid packet")
+                return
             }
+            
+            val localIP = NetworkConfig.getLocalIP()
+            if (packet.targetIP != "*" && packet.targetIP != localIP) {
+                sendResponse(socket, false, packet.commandId, "Not target")
+                return
+            }
+            
+            onCommandReceived.forEach { it(packet) }
+            val result = ActionRegistry.execute(packet)
+            onCommandExecuted.forEach { it(packet, result.first, result.second) }
+            
+            sendResponse(socket, result.first, packet.commandId, result.second)
+        } catch (e: Exception) {
+            println("[Listener] Client error: ${e.message}")
+        } finally {
+            socket.close()
         }
     }
     
     private fun sendResponse(socket: Socket, success: Boolean, commandId: String, message: String) {
         try {
-            val response = ResponsePacket(
-                success = success,
-                commandId = commandId,
-                responderIP = NetworkConfig.getLocalIP(),
-                message = message
-            )
+            val response = ResponsePacket(success, commandId, NetworkConfig.getLocalIP(), message)
             socket.getOutputStream().write((response.toJson() + "\n").toByteArray())
-        } catch (e: Exception) {
-            println("[Listener] Response error: ${e.message}")
-        }
+        } catch (_: Exception) {}
     }
 }

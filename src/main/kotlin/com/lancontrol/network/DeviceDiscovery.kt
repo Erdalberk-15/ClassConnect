@@ -8,6 +8,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketTimeoutException
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 /**
@@ -17,9 +18,10 @@ object DeviceDiscovery {
     private const val DISCOVERY_MSG = "LANCONTROL_DISCOVER"
     private const val RESPONSE_PREFIX = "LANCONTROL_HERE:"
     
-    private var running = false
+    @Volatile private var running = false
     private var discoveryThread: Thread? = null
     private var listenerThread: Thread? = null
+    private val executor = Executors.newFixedThreadPool(4)
     
     val devices: ObservableList<Device> = FXCollections.observableArrayList()
     
@@ -27,32 +29,22 @@ object DeviceDiscovery {
         if (running) return
         running = true
         
-        // Start listener for discovery requests
         listenerThread = thread(name = "DiscoveryListener") {
             try {
                 DatagramSocket(NetworkConfig.DISCOVERY_PORT).use { socket ->
                     socket.soTimeout = 1000
-                    val buffer = ByteArray(NetworkConfig.BUFFER_SIZE)
+                    val buffer = ByteArray(256)
+                    val responseBytes = "$RESPONSE_PREFIX${NetworkConfig.deviceName}".toByteArray()
                     
                     while (running) {
                         try {
                             val packet = DatagramPacket(buffer, buffer.size)
                             socket.receive(packet)
                             
-                            val message = String(packet.data, 0, packet.length)
-                            if (message == DISCOVERY_MSG) {
-                                // Respond with our info
-                                val response = "$RESPONSE_PREFIX${NetworkConfig.deviceName}"
-                                val responseData = response.toByteArray()
-                                val responsePacket = DatagramPacket(
-                                    responseData, responseData.size,
-                                    packet.address, packet.port
-                                )
-                                socket.send(responsePacket)
+                            if (String(packet.data, 0, packet.length) == DISCOVERY_MSG) {
+                                socket.send(DatagramPacket(responseBytes, responseBytes.size, packet.address, packet.port))
                             }
-                        } catch (e: SocketTimeoutException) {
-                            // Normal timeout
-                        }
+                        } catch (_: SocketTimeoutException) {}
                     }
                 }
             } catch (e: Exception) {
@@ -60,7 +52,6 @@ object DeviceDiscovery {
             }
         }
         
-        // Start periodic discovery broadcasts
         discoveryThread = thread(name = "DiscoveryBroadcast") {
             while (running) {
                 scanNetwork()
@@ -71,39 +62,33 @@ object DeviceDiscovery {
     
     fun stop() {
         running = false
-        discoveryThread?.join(2000)
-        listenerThread?.join(2000)
+        executor.shutdown()
+        discoveryThread?.join(1000)
+        listenerThread?.join(1000)
     }
     
     fun scanNetwork() {
-        thread {
+        executor.submit {
             try {
                 DatagramSocket().use { socket ->
-                    socket.soTimeout = 2000
+                    socket.soTimeout = 1500
                     socket.broadcast = true
                     
                     val subnet = NetworkConfig.getSubnetPrefix()
+                    val localIP = NetworkConfig.getLocalIP()
                     val message = DISCOVERY_MSG.toByteArray()
                     
-                    // Send to all IPs in subnet
+                    // Batch send - faster
                     for (i in 1..254) {
                         val ip = "$subnet$i"
-                        if (ip != NetworkConfig.getLocalIP()) {
+                        if (ip != localIP) {
                             try {
-                                val packet = DatagramPacket(
-                                    message, message.size,
-                                    InetAddress.getByName(ip),
-                                    NetworkConfig.DISCOVERY_PORT
-                                )
-                                socket.send(packet)
-                            } catch (e: Exception) {
-                                // Skip unreachable
-                            }
+                                socket.send(DatagramPacket(message, message.size, InetAddress.getByName(ip), NetworkConfig.DISCOVERY_PORT))
+                            } catch (_: Exception) {}
                         }
                     }
                     
-                    // Listen for responses
-                    val buffer = ByteArray(NetworkConfig.BUFFER_SIZE)
+                    val buffer = ByteArray(256)
                     val foundDevices = mutableListOf<Device>()
                     
                     while (true) {
@@ -113,18 +98,15 @@ object DeviceDiscovery {
                             
                             val response = String(packet.data, 0, packet.length)
                             if (response.startsWith(RESPONSE_PREFIX)) {
-                                val name = response.removePrefix(RESPONSE_PREFIX)
-                                val ip = packet.address.hostAddress
-                                foundDevices.add(Device(ip, name))
+                                foundDevices.add(Device(packet.address.hostAddress, response.removePrefix(RESPONSE_PREFIX)))
                             }
-                        } catch (e: SocketTimeoutException) {
-                            break
-                        }
+                        } catch (_: SocketTimeoutException) { break }
                     }
                     
-                    Platform.runLater {
-                        devices.clear()
-                        devices.addAll(foundDevices)
+                    if (foundDevices.isNotEmpty() || devices.isNotEmpty()) {
+                        Platform.runLater {
+                            devices.setAll(foundDevices)
+                        }
                     }
                 }
             } catch (e: Exception) {

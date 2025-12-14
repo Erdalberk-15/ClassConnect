@@ -7,7 +7,9 @@ import com.lancontrol.models.CommandPacket
 import com.lancontrol.network.CommandSender
 import com.lancontrol.network.DeviceDiscovery
 import com.lancontrol.network.NetworkConfig
+import com.lancontrol.network.FileTransfer
 import com.lancontrol.utils.TimeRestriction
+import javafx.stage.FileChooser
 import javafx.application.Platform
 import javafx.collections.FXCollections
 import javafx.fxml.FXML
@@ -29,6 +31,7 @@ class MainController : Initializable {
     @FXML lateinit var statusLabel: Label
     @FXML lateinit var localIPLabel: Label
     @FXML lateinit var targetIPField: TextField
+    @FXML lateinit var lockButton: Button
     private var selectedDevice: Device? = null
     
     override fun initialize(location: URL?, resources: ResourceBundle?) {
@@ -37,6 +40,7 @@ class MainController : Initializable {
         setupActionButtons()
         setupCommandListener()
         startDiscovery()
+        startLockButtonUpdater()
     }
     
     private fun setupUI() {
@@ -49,20 +53,13 @@ class MainController : Initializable {
             object : ListCell<Device>() {
                 override fun updateItem(item: Device?, empty: Boolean) {
                     super.updateItem(item, empty)
-                    if (empty || item == null) {
-                        text = null
-                        graphic = null
-                    } else {
-                        text = "${item.name} (${item.ip})"
-                        style = if (item.isOnline()) "-fx-text-fill: green;" else "-fx-text-fill: gray;"
-                    }
+                    text = if (empty || item == null) null else "${item.name} (${item.ip})"
+                    graphic = null
+                    style = if (item?.isOnline() == true) "-fx-text-fill: green;" else "-fx-text-fill: gray;"
                 }
             }
         }
-        
-        deviceListView.selectionModel.selectedItemProperty().addListener { _, _, device ->
-            selectedDevice = device
-        }
+        deviceListView.selectionModel.selectedItemProperty().addListener { _, _, d -> selectedDevice = d }
     }
     
     private fun setupActionButtons() {
@@ -71,36 +68,25 @@ class MainController : Initializable {
         actionPane.vgap = 10.0
         actionPane.padding = Insets(10.0)
         
-        // Add Show Screen button first
-        val screenBtn = Button("Ekran Göster").apply {
-            prefWidth = 120.0
-            prefHeight = 60.0
-            styleClass.add("action-button")
-            styleClass.add("screen-button")
-            tooltip = Tooltip("Seçili cihazın ekranını görüntüle")
-            
-            setOnAction {
-                if (checkTimeRestriction()) {
-                    showRemoteScreen()
-                }
-            }
+        fun createButton(text: String, vararg styles: String, action: () -> Unit) = Button(text).apply {
+            prefWidth = 120.0; prefHeight = 60.0
+            styleClass.addAll("action-button", *styles)
+            setOnAction { if (checkTimeRestriction()) action() }
         }
-        actionPane.children.add(screenBtn)
         
-        ActionRegistry.getAvailableActions().forEach { action ->
-            val btn = Button(action.name).apply {
-                prefWidth = 120.0
-                prefHeight = 60.0
-                styleClass.add("action-button")
+        actionPane.children.addAll(
+            createButton("Ekran Göster", "screen-button") { showRemoteScreen() },
+            createButton("Dosya Gönder", "file-button") { sendFile() },
+            createButton("Mesaj Gönder", "message-button") { sendMessage() },
+            createButton("VIP Komutlar", "vip-button") { showVIPCommands() }
+        )
+        
+        ActionRegistry.getAvailableActions().filter { 
+            it.commandId !in listOf("SHUTDOWN", "RESTART", "LOCK_SCREEN", "PING", "SHOW_NOTIFICATION")
+        }.forEach { action ->
+            actionPane.children.add(createButton(action.name) { executeAction(action.commandId) }.apply {
                 tooltip = Tooltip(action.description)
-                
-                setOnAction {
-                    if (checkTimeRestriction()) {
-                        executeAction(action.commandId)
-                    }
-                }
-            }
-            actionPane.children.add(btn)
+            })
         }
     }
     
@@ -150,7 +136,7 @@ class MainController : Initializable {
         dialog.editor.isManaged = false
         dialog.dialogPane.content = VBox(10.0, Label("Admin şifresini girin:"), passwordField)
         
-        val result = dialog.showAndWait()
+        dialog.showAndWait()
         
         val password = passwordField.text
         
@@ -165,20 +151,91 @@ class MainController : Initializable {
         return false
     }
     
-    private fun showRemoteScreen() {
-        // Use manual IP if entered, otherwise use selected device
+    private fun getTarget(): Pair<String, String>? {
         val ip = targetIPField.text.trim().ifEmpty { selectedDevice?.ip }
-        val name = selectedDevice?.name ?: "Manual"
-        
         if (ip.isNullOrEmpty()) {
             showAlert("Hata", "Lütfen bir IP girin veya listeden cihaz seçin")
-            return
+            return null
         }
-        
+        return ip to (selectedDevice?.name ?: "Manual")
+    }
+    
+    private fun showRemoteScreen() {
+        val (ip, name) = getTarget() ?: return
         log("[SCREEN] $name ($ip) ekranı görüntüleniyor...")
         updateStatus("Ekran alınıyor...")
-        
         ScreenViewerController.showScreen(ip, name)
+    }
+    
+    private fun sendFile() {
+        val (ip, name) = getTarget() ?: return
+        FileChooser().apply { title = "Gönderilecek Dosyayı Seçin" }
+            .showOpenDialog(deviceListView.scene.window)?.let { file ->
+                log("[FILE] $name ($ip) cihazına dosya gönderiliyor: ${file.name}")
+                updateStatus("Dosya gönderiliyor...")
+                FileTransfer.sendFile(ip, file,
+                    onProgress = { Platform.runLater { updateStatus("Gönderiliyor: %$it") } },
+                    onComplete = { success, msg ->
+                        Platform.runLater {
+                            if (success) { log("[FILE] Başarılı: $msg"); updateStatus("Dosya gönderildi"); showInfo("Başarılı", msg) }
+                            else { log("[FILE] Hata: $msg"); updateStatus("Gönderim başarısız"); showAlert("Hata", msg) }
+                        }
+                    }
+                )
+            }
+    }
+    
+    private fun sendMessage() {
+        val (ip, name) = getTarget() ?: return
+        TextInputDialog().apply { title = "Mesaj Gönder"; headerText = "Gönderilecek mesajı yazın"; contentText = "Mesaj:" }
+            .showAndWait().filter { it.isNotEmpty() }.ifPresent { message ->
+                log("[MESSAGE] $name ($ip) cihazına mesaj gönderiliyor: $message")
+                updateStatus("Mesaj gönderiliyor...")
+                CommandSender.send(ip, "SEND_MESSAGE", mapOf("message" to message)) { response ->
+                    Platform.runLater {
+                        val ok = response?.success == true
+                        log("[MESSAGE] Mesaj ${if (ok) "gönderildi" else "gönderilemedi"}")
+                        updateStatus(if (ok) "Mesaj gönderildi" else "Mesaj gönderilemedi")
+                    }
+                }
+            }
+    }
+    
+    private fun showVIPCommands() {
+        val (ip, name) = getTarget() ?: return
+        
+        // VIP şifre kontrolü
+        if (!checkVIPPassword()) return
+        
+        VIPCommandsController.show(ip, name) { cmdName, success, message ->
+            val status = if (success) "SUCCESS" else "FAILED"
+            log("[VIP] $cmdName: $status - $message")
+            updateStatus("$cmdName: $status")
+        }
+    }
+    
+    private fun checkVIPPassword(): Boolean {
+        val dialog = TextInputDialog()
+        dialog.title = "VIP Komutlar"
+        dialog.headerText = "VIP Şifresini Girin"
+        dialog.contentText = "Şifre:"
+        
+        val passwordField = PasswordField()
+        passwordField.promptText = "VIP şifresi"
+        dialog.editor.isVisible = false
+        dialog.editor.isManaged = false
+        dialog.dialogPane.content = VBox(10.0, Label("VIP şifresini girin:"), passwordField)
+        
+        dialog.showAndWait()
+        
+        val password = passwordField.text
+        if (password == "3169") {
+            log("[VIP] VIP erişimi sağlandı")
+            return true
+        } else if (password.isNotEmpty()) {
+            showAlert("Hata", "Yanlış VIP şifresi!")
+        }
+        return false
     }
     
     private fun setupCommandListener() {
@@ -194,6 +251,14 @@ class MainController : Initializable {
                 log("[EXECUTED] ${packet.commandId}: $status - $message")
             }
         }
+        
+        // Setup file received notification
+        FileTransfer.onFileReceived = { file ->
+            Platform.runLater {
+                log("[FILE] Dosya alındı: ${file.name}")
+                showInfo("Dosya Alındı", "Dosya kaydedildi:\n${file.absolutePath}")
+            }
+        }
     }
     
     private fun startDiscovery() {
@@ -202,15 +267,7 @@ class MainController : Initializable {
     }
     
     private fun executeAction(commandId: String) {
-        // Use manual IP if entered, otherwise use selected device
-        val ip = targetIPField.text.trim().ifEmpty { selectedDevice?.ip }
-        val name = selectedDevice?.name ?: "Manual"
-        
-        if (ip.isNullOrEmpty()) {
-            showAlert("Error", "Please enter an IP or select a device from the list")
-            return
-        }
-        
+        val (ip, name) = getTarget() ?: return
         log("[SENDING] $commandId to $name ($ip)")
         updateStatus("Sending command...")
         
@@ -240,6 +297,28 @@ class MainController : Initializable {
         logArea.clear()
     }
     
+    @FXML
+    fun onLockApp() {
+        TimeRestriction.lock()
+        lockButton.isVisible = false
+        log("[ADMIN] Uygulama kilitlendi")
+        updateStatus("Kilitlendi")
+    }
+    
+    /**
+     * Periodically check if admin is unlocked and show/hide lock button
+     */
+    private fun startLockButtonUpdater() {
+        val timer = java.util.Timer(true)
+        timer.scheduleAtFixedRate(object : java.util.TimerTask() {
+            override fun run() {
+                Platform.runLater {
+                    lockButton.isVisible = TimeRestriction.isUnlocked()
+                }
+            }
+        }, 0, 1000) // Check every second
+    }
+    
     private fun log(message: String) {
         val timestamp = java.time.LocalTime.now().toString().substringBefore(".")
         logArea.appendText("[$timestamp] $message\n")
@@ -251,6 +330,14 @@ class MainController : Initializable {
     
     private fun showAlert(title: String, message: String) {
         Alert(Alert.AlertType.WARNING).apply {
+            this.title = title
+            headerText = null
+            contentText = message
+        }.showAndWait()
+    }
+    
+    private fun showInfo(title: String, message: String) {
+        Alert(Alert.AlertType.INFORMATION).apply {
             this.title = title
             headerText = null
             contentText = message

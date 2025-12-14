@@ -202,3 +202,48 @@
     -fx-border-color: #45475a;
     -fx-font-size: 12px;
 }
+
+/* Lock Button */
+.lock-btn {
+    -fx-background-color: #f38ba8;
+    -fx-text-fill: #1e1e2e;
+    -fx-font-size: 18px;
+    -fx-padding: 5 10;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+}
+
+.lock-btn:hover {
+    -fx-background-color: #eba0ac;
+}
+
+/* Message Button */
+.message-button {
+    -fx-background-color: #cba6f7;
+    -fx-text-fill: #1e1e2e;
+}
+
+.message-button:hover {
+    -fx-background-color: #dbb8ff;
+}
+
+/* File Button */
+.file-button {
+    -fx-background-color: #a6e3a1;
+    -fx-text-fill: #1e1e2e;
+}
+
+.file-button:hover {
+    -fx-background-color: #b8f0b3;
+}
+
+/* VIP Button */
+.vip-button {
+    -fx-background-color: #f38ba8;
+    -fx-text-fill: #1e1e2e;
+}
+
+.vip-button:hover {
+    -fx-background-color: #eba0ac;
+}

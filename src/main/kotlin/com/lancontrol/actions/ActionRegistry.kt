@@ -26,6 +26,7 @@ object ActionRegistry {
         const val SCREENSHOT = "SCREENSHOT"
         const val PING = "PING"
         const val DONATE = "DONATE"
+        const val SEND_MESSAGE = "SEND_MESSAGE"
     }
     
     private val handlers = mutableMapOf<String, (CommandPacket) -> Pair<Boolean, String>>()
@@ -49,7 +50,7 @@ object ActionRegistry {
                     Desktop.getDesktop().open(file)
                     Pair(true, "Launched: $path")
                 } else {
-                    Runtime.getRuntime().exec(path)
+                    ProcessBuilder("cmd", "/c", path).start()
                     Pair(true, "Executed: $path")
                 }
             } catch (e: Exception) {
@@ -106,7 +107,7 @@ object ActionRegistry {
         // System shutdown
         register(Commands.SHUTDOWN) { _ ->
             try {
-                Runtime.getRuntime().exec("shutdown /s /t 30")
+                ProcessBuilder("shutdown", "/s", "/t", "30").start()
                 Pair(true, "Shutdown initiated (30 seconds)")
             } catch (e: Exception) {
                 Pair(false, "Shutdown failed: ${e.message}")
@@ -116,7 +117,7 @@ object ActionRegistry {
         // System restart
         register(Commands.RESTART) { _ ->
             try {
-                Runtime.getRuntime().exec("shutdown /r /t 30")
+                ProcessBuilder("shutdown", "/r", "/t", "30").start()
                 Pair(true, "Restart initiated (30 seconds)")
             } catch (e: Exception) {
                 Pair(false, "Restart failed: ${e.message}")
@@ -126,7 +127,7 @@ object ActionRegistry {
         // Lock screen
         register(Commands.LOCK_SCREEN) { _ ->
             try {
-                Runtime.getRuntime().exec("rundll32.exe user32.dll,LockWorkStation")
+                ProcessBuilder("rundll32.exe", "user32.dll,LockWorkStation").start()
                 Pair(true, "Screen locked")
             } catch (e: Exception) {
                 Pair(false, "Lock failed: ${e.message}")
@@ -140,6 +141,17 @@ object ActionRegistry {
                 Pair(true, "Donate shown")
             } catch (e: Exception) {
                 Pair(false, "Donate failed: ${e.message}")
+            }
+        }
+        
+        // Send message overlay
+        register(Commands.SEND_MESSAGE) { packet ->
+            val message = packet.params["message"] ?: return@register Pair(false, "No message specified")
+            try {
+                MessageOverlay.show(packet.senderName, message)
+                Pair(true, "Message shown")
+            } catch (e: Exception) {
+                Pair(false, "Message failed: ${e.message}")
             }
         }
     }

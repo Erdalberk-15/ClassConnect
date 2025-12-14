@@ -68,6 +68,11 @@
             </HBox>
             
             <TextArea fx:id="logArea" prefHeight="150" editable="false" wrapText="true" styleClass="log-area"/>
+            
+            <HBox alignment="CENTER_RIGHT">
+                <padding><Insets top="5" right="0" bottom="0" left="0"/></padding>
+                <Button fx:id="lockButton" text="🔓" onAction="#onLockApp" styleClass="lock-btn" visible="false"/>
+            </HBox>
         </VBox>
     </bottom>
     
